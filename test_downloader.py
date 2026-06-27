@@ -1,7 +1,13 @@
 import unittest
 from pathlib import Path
 
-from downloader import Video, default_output, extract_videos, ffmpeg_command
+from downloader import (
+    Video,
+    default_output,
+    extract_videos,
+    ffmpeg_command,
+    localize_playlist,
+)
 
 
 class DownloaderTests(unittest.TestCase):
@@ -25,6 +31,25 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn("copy", command)
         self.assertIn("Referer: https://example.com/post/1", "\n".join(command))
         self.assertIn("-n", command)
+
+    def test_localizes_segments_key_and_map(self):
+        playlist = """#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="key.bin",IV=0x01
+#EXT-X-MAP:URI='init.mp4'
+#EXTINF:2,
+segment-1.ts?token=x
+#EXTINF:2,
+segment-2.ts
+#EXT-X-ENDLIST
+"""
+        localized, resources = localize_playlist(
+            playlist, "https://cdn.example/path/index.m3u8"
+        )
+        self.assertNotIn("https://", localized)
+        self.assertIn('URI="resource-000000.bin"', localized)
+        self.assertIn('URI="resource-000001.mp4"', localized)
+        self.assertIn("resource-000002.ts", localized)
+        self.assertEqual(len(resources), 4)
 
 
 if __name__ == "__main__":
